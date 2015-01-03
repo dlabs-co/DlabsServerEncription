@@ -1,0 +1,57 @@
+#!/bin/bash
+help_(){
+    cat <<EOF
+Usage: $0 
+
+Given a directory containing this file and a set of rsa ssh keys named after desired usernames
+it creates the usernames, configures encryption mountpoints and adds user to common groups
+for dlabs hackerspace
+
+EOF
+
+}
+create_user(){
+    # Create the user
+    adduser --disabled-password --gecos "" $user; 
+    # Add user to music and torrent group and fuse group
+    adduser $user music; adduser $user torrent; adduser $user fuse;
+}
+
+fix_permissions(){
+    chown -R $user:$user /var/mount/${user}.ssh /var/mount/${user} /home/${user}/.ssh /home/${user} /var/mount/${user}.web
+}
+
+configure_ssh(){
+    # Add ssh keys to /var/mount and link them to the home, 
+    # so we can re-create that link when the user mounts the cyphered fs.
+    # Yup, that means the key will not be encrypted with the rest, but 
+    # that's completly unavoidable, so users HAVE TO use passwords with the
+    # SSH key.
+    mkdir /var/mount/${user}.ssh
+    mkdir /var/mount/${user}.web
+    cp $user /var/mount/${user}.ssh/authorized_keys; 
+}
+
+configure_encryption(){
+    mkdir /var/mount/${user}
+}
+
+configure_lighty(){
+    # And this nice magic allows users to add its own config to lighty.
+    touch /etc/lighttpd/conf-enabled/users/90-$user.conf 
+    chown $user:www-data /etc/lighttpd/conf-enabled/users/90-$user.conf
+}
+
+create_users(){
+    for user in *; do 
+        # Add the user if not already added.   
+        grep $user /etc/passwd &>/dev/null && continue
+        [[ $user == $(basename $0) ]] && continue
+        create_user
+        configure_ssh
+        configure_encryption
+        fix_permissions
+    done
+}
+
+create_users

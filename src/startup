@@ -1,0 +1,30 @@
+#!/bin/bash
+# El fichero newborn deberá estar en el /etc/skel (vacio).
+# Si existe, borramos el home completo y empezamos la instalacion.
+[[ -e /home/$USER/.newborn ]] && rm -rf /home/$USER/.* /home/$USER/* 
+# Si el sistema de ficheros no esta cifrado lo inicializamos o montamos. 
+[[ ! -e /home/$USER/.encrypted ]] && { 
+    encfs /var/mount/$USER /home/$USER || encfs /var/mount/$USER /home/$USER
+    touch /home/$USER/.encrypted
+
+    # Si no hemos creado ya los ficheros base los creamos
+    [[ ! -e /home/$USER/.initialized ]] && {
+        touch /home/$USER/.initialized
+        echo "Esta es la primera vez que montas tu sistema, espera mientras creamos los directorios necesarios" 
+
+        # Re-copy skeleton.
+        cp -r /etc/skel/.bash* /etc/skel/.profile* /etc/skel/* /home/$USER
+
+        # Create the mail dir, web dir, music dir and torrent dir
+        mkdir /home/$USER/mail; mkdir /home/$USER/public_html;
+        ln -s /home/music /home/$USER/music; ln -s /home/torrent /home/$USER/torrents; ln -s /var/mount/${USER}.web/ /home/
+
+        # Finish the lighty configuration.
+        ln -s /etc/lighttpd/conf-enabled/users/90-$USER.conf /home/$USER/.lighttpd.conf
+
+        echo "Finished, now you'll have public_html for your webpage and mail for your mail"
+        echo "Remember that this is a secure and encrypted server, but webpage will not be encripted, it is a symlink ."
+    }
+}
+
+cd /home/$USER/
